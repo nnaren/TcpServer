@@ -6,10 +6,12 @@
 #include<unistd.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
- 
+#include<fcntl.h>
+#include<errno.h>
+
 #define PORT 8900
  
-int main(int argc,char** argv)
+int main2(int argc,char** argv)
 {
     struct sockaddr_in server;
     struct sockaddr_in client;
@@ -28,7 +30,7 @@ int main(int argc,char** argv)
     memset(send_buf,0,2048);
     memset(recv_buf,0,2048);
     
-    opt = SO_REUSEADDR;
+    // opt = SO_REUSEADDR;
       
  
     if (-1==(listend=socket(AF_INET,SOCK_STREAM,0)))
@@ -36,7 +38,7 @@ int main(int argc,char** argv)
         perror("create listen socket error\n");
         exit(1);
     }
-    setsockopt(listend,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
+    // setsockopt(listend,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
  
  
     memset(&server,0,sizeof(struct sockaddr_in));
@@ -55,15 +57,14 @@ int main(int argc,char** argv)
         perror("listen error\n");
         exit(1);
     }
- 
+    fcntl(listend, F_SETFL, fcntl(listend, F_GETFL, 0) | O_NONBLOCK);
     while (1)
     {
-        if (-1==(connectd=accept(listend, (struct sockaddr*)&client, &len)))
+        if (EISCONN==(connectd=accept(listend, (struct sockaddr*)&client, &len)))
         {
             perror("create connect socket error\n");
             continue;
         }
- 
     
     sendnum = sprintf(send_buf,"hello,the guest from %s\n",inet_ntoa(client.sin_addr));
     if ( 0 >send(connectd,send_buf,sendnum,0))
@@ -74,7 +75,7 @@ int main(int argc,char** argv)
     }
     
  
-    if (0>(recvnum = recv(connectd,recv_buf,sizeof(recv_buf),0)))
+    if (0>(recvnum = recv(connectd, recv_buf, sizeof(recv_buf),0)))
     {
         perror("recv error\n");
         close(connectd);
@@ -82,7 +83,7 @@ int main(int argc,char** argv)
     }
     recv_buf[recvnum]='\0';
  
-    printf ("客户端发来的消息: %s\n",recv_buf);
+    printf ("客户端发来的消息: %s\n", recv_buf);
  
     if (0==strcmp(recv_buf,"quit"))
     {
