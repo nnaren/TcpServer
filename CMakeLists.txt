@@ -4,6 +4,10 @@ project(${This} CXX)
 
 Set(Sources
     TcpServer_multipthread.cpp
+    TcpServer_normal.cpp
+    TcpServer_select.cpp
+    main.cpp
+    TcpServer_nonblocking.cpp
 )
 
 add_executable(${This} ${Sources})

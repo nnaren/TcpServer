@@ -1,35 +1,66 @@
-#include "socket_helper.h"
-#include "ptheard_y.h"
-#include<stdlib.h>
+#include<sys/socket.h>
+#include<stdio.h>
+#include<errno.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include <unistd.h>
+#include <pthread.h>
 
-#include<unistd.h>
+#include"socket_helper.h"
+
+
 #define NUM_PTHREAD 5
 
 
-void *handle_clnt(void *arg);
-int main(int argc, char *argv[])
+void *handle_clnt(void *arg)
 {
-    int serverfd, clntfd;
-    struct sockaddr_in  clnt_adr;
-    socklen_t clnt_adr_sz = sizeof(clnt_adr);;
-    pthread_t pid;
-    // if (argc != 2)
+    ClientSocketInfo clntSocketInfo = *(( ClientSocketInfo*)arg);
+    int str_len = 0, i;
+    char send_buf[BUF_SIZE];
+    char recv_buf[BUF_SIZE];
+    // int  sendnum = sprintf(send_buf,"hello,the guest from %s\n",inet_ntoa(clnt_adr.sin_addr));
+    // if ( 0 >send(connectd,send_buf,sendnum,0))
     // {
-    //     printf("Usage : %s <port>\n", argv[0]);
-    //     exit(1);
+    //     perror("send error\n");
+    //     close(connectd);
+    //     continue;
     // }
-
-    // pthread_mutex_init(&mutx, NULL); //创建互斥锁
-    serverfd = ReadyforTcpServer(10086);
-    printf("服务端fd: %d\n", serverfd);
-    if (serverfd == -1)
+    int recvnum;
+    if (0>(recvnum = recv(clntSocketInfo.clientfd,recv_buf,sizeof(recv_buf),0)))
     {
-        /* code */
-        return 0;
+        perror("recv error\n");
+        close(clntSocketInfo.clientfd);
+        return NULL;
     }
+    recv_buf[recvnum]='\0';
+    printf ("客户端fd:%d \n", clntSocketInfo.clientfd);
+    printf ("客户端port:%d \n", clntSocketInfo.clntAddr->sin_port);
+    printf ("连接客户端IP: %s \n", inet_ntoa(clntSocketInfo.clntAddr->sin_addr)); //客户端连接的ip地址
+    printf ("客户端发来的消息: %s",recv_buf);
+    printf ("结束.\n");
+    close(clntSocketInfo.clientfd);
 
-    close(serverfd);
-    return 0;
-    
+    return NULL;
+}
+
+void AcceptByMultiThread(int serverfd, pthread_t pid)
+{
+    sockaddr_in clnt_adr;
+    socklen_t clnt_addr_size;
+    int clntfd;
+    while (1)
+    {
+        
+        if (EISCONN == (clntfd = accept(serverfd, (struct sockaddr*)&clnt_adr, &clnt_addr_size)))
+        {
+            perror("create connect socket error\n");
+            continue;
+        }
+        ClientSocketInfo clntSocketInfo;
+        clntSocketInfo.clientfd = clntfd;
+        clntSocketInfo.clntAddr = &clnt_adr;
+        pthread_create(&pid, NULL, handle_clnt, (void *)&clntSocketInfo); 
+        pthread_detach(pid);
+    }
 }
 
