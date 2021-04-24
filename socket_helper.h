@@ -9,7 +9,7 @@ struct ClientSocketInfo
     struct sockaddr_in* clntAddr;
 };
 
-int ReadyforTcpServer(unsigned short port);
+int ReadyforTcpServer(unsigned short port,int blockFlag);
 
 void SetSockNonBlock(int socketfd);
 

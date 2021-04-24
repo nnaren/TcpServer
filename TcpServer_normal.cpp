@@ -8,36 +8,40 @@
 
 #include"socket_helper.h"
 
-int ReadyforTcpServer(unsigned short port)
+int ReadyforTcpServer(unsigned short port, int blockFlag)
 {
     // Create socket
-    int serverFd;
-    if (-1==(serverFd=socket(AF_INET,SOCK_STREAM,0)))
+    int serverfd;
+    if (-1==(serverfd=socket(AF_INET,SOCK_STREAM,0)))
     {
         perror("create listen socket error\n");
         return -1;
     }
-
+    if(1 == blockFlag)
+    {
+        SetSockNonBlock(serverfd);
+    }
+    
     // bind ip  and port
     struct sockaddr_in serverAddr;
     memset(&serverAddr,0,sizeof(struct sockaddr_in));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddr.sin_port = htons(port);
-    if (-1 == bind(serverFd, (struct sockaddr *) &serverAddr, sizeof(struct sockaddr)))
+    if (-1 == bind(serverfd, (struct sockaddr *) &serverAddr, sizeof(struct sockaddr)))
     {
         perror("bind error\n");
         return -1;
     }
 
     // listen socket
-    if (-1==listen(serverFd, 5))
+    if (-1==listen(serverfd, 5))
     {
         perror("listen error\n");
         return -1;
     }
 
-    return serverFd;
+    return serverfd;
 }
 
 void AcceptNormal(int serverfd)

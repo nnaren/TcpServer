@@ -18,14 +18,14 @@ int UpdateMaxfd(fd_set fds, int maxfd) {
     }
     return new_maxfd;
 }
-#define SELECT_TIMEOUT 5
+#define SELECT_TIMEOUT 3
+
 void AcceptBySelect(int serverfd)
 {
 
     char buffer[BUF_SIZE] = {0};
     struct timeval timeout = {SELECT_TIMEOUT,0}; //select等待5秒，5秒轮询，要非阻塞就置0
 
-    int i,maxfd;
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     int new_client_fd;
@@ -34,6 +34,9 @@ void AcceptBySelect(int serverfd)
     FD_ZERO(&rfds);
     FD_ZERO(&rfds_back);
     FD_SET(serverfd, &rfds_back);
+
+    int fdIndex;
+    int maxfd = serverfd;
     while(1) 
     { 
         
@@ -47,20 +50,21 @@ void AcceptBySelect(int serverfd)
         switch(select(maxfd+1, &rfds, NULL, NULL, &timeout)) //select使用 
         { 
             case -1:
-                return;
+                perror("select failed");
+                exit(EXIT_FAILURE);
             case 0:
-                break; //再次轮询 
+                printf("no socket ready for read within %d secs\n", SELECT_TIMEOUT);
+                continue; //再次轮询 
             default: 
-                for (i = 0; i <= maxfd; i++) 
+                for (fdIndex = 0; fdIndex <= maxfd; fdIndex++) 
                 {
-                    if (!FD_ISSET(i, &rfds)) 
+                    if (!FD_ISSET(fdIndex, &rfds)) 
                     {
-                    continue;
+                        continue;
                     }
                     //可读的socket
-                    if ( i == serverfd) {
+                    if ( fdIndex == serverfd) {
                         //当前是server的socket，不进行读写而是accept新连接
-                        
                         new_client_fd = accept(serverfd, (struct sockaddr *) &client_addr, &client_addr_len);
                         if (new_client_fd == -1) {
                             perror("accept failed");
@@ -83,24 +87,24 @@ void AcceptBySelect(int serverfd)
                     {
                         //当前是client连接的socket，可以写(read from client)
                         memset(buffer, 0, sizeof(buffer));
-                        if ( (recv_num = recv(i, buffer, sizeof(buffer), 0)) == -1 ) {
+                        if ( (recv_num = recv(fdIndex, buffer, sizeof(buffer), 0)) == -1 ) {
                             perror("recv failed");
                             exit(EXIT_FAILURE);
                         }
-                        printf("recved from new_sock=%d : %s(%d length string)\n", i, buffer, recv_num);
+                        printf("recved from new_sock=%d : %s(%d length string)\n", fdIndex, buffer, recv_num);
                         //立即将收到的内容写回去，并关闭连接
-                        if ( send(i, buffer, recv_num, 0) == -1 ) {
+                        if ( send(fdIndex, buffer, recv_num, 0) == -1 ) {
                             perror("send failed");
                             exit(EXIT_FAILURE);
                         }
-                        printf("send to new_sock=%d done\n", i);
-                        if ( close(i) == -1 ) {
+                        printf("send to new_sock=%d done\n", fdIndex);
+                        if ( close(fdIndex) == -1 ) {
                             perror("close failed");
                             exit(EXIT_FAILURE);
                         }
-                        printf("close new_sock=%d done\n", i);
+                        printf("close new_sock=%d done\n", fdIndex);
                         //将当前的socket从select的侦听中移除
-                        FD_CLR(i, &rfds_back);
+                        FD_CLR(fdIndex, &rfds_back);
                     }
                 }
         }// end switch 

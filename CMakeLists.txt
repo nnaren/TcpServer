@@ -6,8 +6,8 @@ Set(Sources
     TcpServer_multipthread.cpp
     TcpServer_normal.cpp
     TcpServer_select.cpp
-    main.cpp
     TcpServer_nonblocking.cpp
+    main.cpp
 )
 
 add_executable(${This} ${Sources})
